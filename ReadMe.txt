@@ -5,6 +5,7 @@
  - 응용프로그램 UI Layout 구축
  - 얻은 정보 문서화 작업(추후 완성 ReadMe 보조자료)
  - A3C or A2C 선택 및 구현
+ - ManyCam, BlueStack 설치파일 추가
 
 
 진행 상황
@@ -12,5 +13,5 @@
  - UI Layout 구축(진행)
  - ROI Detection 성공
  - Target location extraction 성공
- - state 정의(진행)
+ - state 정의 완료
  - 신경망 정의(진행)

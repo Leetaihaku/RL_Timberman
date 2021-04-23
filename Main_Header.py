@@ -15,11 +15,11 @@ from PyQt5.QtWidgets import QFileDialog, QMainWindow
 
 # DISK 경로
 DISK = "D:"
-# 녹스 실행경로
+# BlueStack(앱 플레이어) 실행경로
 ADDRESS_BlueStack = "C:\Program Files\BlueStacks\Bluestacks.exe"
 # 이미지, 모델, 디바이스 경로
 WEBCAM_PATH = '0'
-MODEL_PATH = DISK+"\\Timberman\\YOLOv3\\runs\\train\\8696\\weights\\best.pt"
+MODEL_PATH = DISK+"\\RL_Timberman\\YOLOv3\\runs\\train\\8696\\weights\\best.pt"
 # CUDA 경로
 DEVICE_PATH = '0'
 
@@ -162,7 +162,7 @@ def training():
 
 def detecting_capture():
     '''녹스 플레이화면 탐지'''
-    os.chdir(DISK+'\\Timberman\\YOLOv3')
+    os.chdir(DISK+'\\RL_Timberman\\YOLOv3')
     subprocess.run('python detect.py --source '+WEBCAM_PATH+' --weights '+MODEL_PATH+' --device '+DEVICE_PATH, shell=True)
     return
 

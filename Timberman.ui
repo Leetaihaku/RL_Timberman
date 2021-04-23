@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>338</width>
-    <height>305</height>
+    <width>574</width>
+    <height>499</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -33,7 +33,7 @@
    <widget class="QPushButton" name="OnOff">
     <property name="geometry">
      <rect>
-      <x>250</x>
+      <x>480</x>
       <y>10</y>
       <width>81</width>
       <height>111</height>
@@ -48,7 +48,7 @@
      <rect>
       <x>9</x>
       <y>130</y>
-      <width>321</width>
+      <width>551</width>
       <height>25</height>
      </rect>
     </property>
@@ -75,8 +75,8 @@
    <widget class="QDialogButtonBox" name="OpenClose">
     <property name="geometry">
      <rect>
-      <x>170</x>
-      <y>240</y>
+      <x>410</x>
+      <y>430</y>
       <width>161</width>
       <height>23</height>
      </rect>
@@ -90,7 +90,7 @@
      <rect>
       <x>15</x>
       <y>11</y>
-      <width>231</width>
+      <width>451</width>
       <height>111</height>
      </rect>
     </property>
@@ -101,89 +101,16 @@
      <enum>Qt::RichText</enum>
     </property>
    </widget>
-   <widget class="QWidget" name="horizontalLayoutWidget_2">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>160</y>
-      <width>211</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <layout class="QHBoxLayout" name="horizontalLayout_7">
-     <item>
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>TextLabel</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="lineEdit"/>
-     </item>
-    </layout>
-   </widget>
-   <widget class="QWidget" name="horizontalLayoutWidget_3">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>180</y>
-      <width>211</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <layout class="QHBoxLayout" name="horizontalLayout_8">
-     <item>
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>TextLabel</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="lineEdit_2"/>
-     </item>
-    </layout>
-   </widget>
-   <widget class="QWidget" name="horizontalLayoutWidget_4">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>200</y>
-      <width>211</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <layout class="QHBoxLayout" name="horizontalLayout_9">
-     <item>
-      <widget class="QLabel" name="label_3">
-       <property name="text">
-        <string>TextLabel</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="lineEdit_3"/>
-     </item>
-    </layout>
-   </widget>
    <widget class="QWidget" name="verticalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>230</x>
-      <y>160</y>
-      <width>101</width>
+      <x>10</x>
+      <y>170</y>
+      <width>551</width>
       <height>62</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout_2">
-     <item>
-      <widget class="QRadioButton" name="radioButton_3">
-       <property name="text">
-        <string>None</string>
-       </property>
-      </widget>
-     </item>
      <item>
       <widget class="QRadioButton" name="radioButton">
        <property name="text">
@@ -206,7 +133,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>338</width>
+     <width>574</width>
      <height>21</height>
     </rect>
    </property>
@@ -229,9 +156,7 @@
    </property>
   </action>
  </widget>
- <resources>
-  <include location="img/CrossyRoad.qrc"/>
- </resources>
+ <resources/>
  <connections>
   <connection>
    <sender>BrowseBtn</sender>

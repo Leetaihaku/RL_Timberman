@@ -19,7 +19,7 @@ DISK = "D:"
 ADDRESS_BlueStack = "C:\Program Files\BlueStacks\Bluestacks.exe"
 # 이미지, 모델, 디바이스 경로
 WEBCAM_PATH = '0'
-MODEL_PATH = DISK+"\\RL_Timberman\\YOLOv3\\runs\\train\\8696\\weights\\best.pt"
+MODEL_PATH = DISK+"\\RL_Timberman\\YOLOv3\\runs\\train\\8696\\weights\\best2.pt"
 # CUDA 경로
 DEVICE_PATH = '0'
 
@@ -153,7 +153,8 @@ def init():
 def training():
     '''TRAIN 모듈'''
     detecting_capture()
-    return
+
+
 
 # def testing():
 #     '''TEST 모듈'''
@@ -168,9 +169,9 @@ def detecting_capture():
 
 def ternary(center_array):
     '''탐지화면 삼진화 -> 상태식(Domain) 생성 // x-axis :: 60 ++ 50, y-axis :: 0 ++ 320'''
-    offset_str = ''
+    status = []
     for data in center_array:
         col_offset = data[1][0]//320+1 # [y] +1 -> 상태 혼동 방지 bias
         row_offset = (data[1][1] - 60) // 50 + 1 # [x] -60 -> 모니터링 화면과 YOLO모델 픽셀 차이 상쇄 // +1 -> 상태혼동방지
-        offset_str += str(row_offset)+str(col_offset) # State => 동적 다변수 -> 변수 개수 정적화
-    return offset_str
+        status.append([data[0], row_offset, col_offset])
+    return status

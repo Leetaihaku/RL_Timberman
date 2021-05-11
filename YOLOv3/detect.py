@@ -16,16 +16,22 @@ from utils.torch_utils import select_device, load_classifier, time_synchronized
 
 import Main_Header as Main
 import RL_Header as RL
-import keyboard
 import pyautogui
 import time
+import keyboard
 
-#################################################################################################################
 #################################################################################################################
 
                                         # 탐지 및 탐지상태 변환함수
 
 #################################################################################################################
+
+
+
+#################################################################################################################
+
+                                        # 모델파일 조건부 로드
+
 #################################################################################################################
 def detect(save_img=False):
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
@@ -70,27 +76,45 @@ def detect(save_img=False):
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
 
-    # [수정 :: 강화학습 모듈 시작]
     ########################################################################################################
-    # 에피소드 시작
-    # Agent 생성 + 초기상태 설정 + 최초 행동 시행(Const = 'Start_button')
-    ########################################################################################################
+    # 에피소드 초기 설정
+    # 초기 설정(환경, 에이전트, 상태 생성, 에피소드 시종제어)
+    Environment = RL.Environment()
     Agent = RL.Agent()
-    State = torch.zeros([1, 4], device='cuda')
-    pyautogui.click(x=955, y=955)
-    #임시 반복 카운터
-    tmp_count = 0
+    State = torch.zeros([1, 5], device='cuda')
+    # 게임 활성화 클릭 에피소드 시작 준비
+    # 활성화
+    pyautogui.moveTo(x=960, y=640)
+    pyautogui.doubleClick()
+    # 에피소드 시작 준비(완전탐지 딜레이)
+    keyboard.press_and_release('s')
 
+    # 최초 1회 Skip 변수 = 최초 상태 인식 위함
+    Skip = True
+    # 임시 반복 카운터
+    tmp_count = 0
     ########################################################################################################
-    # 탐지 모듈(상태 생성기)
-    ########################################################################################################
+
+    # 탐지 모듈(상태 생성기) 루프
     for path, img, im0s, vid_cap in dataset:
-        #반복문 내 변수 초기화
-        Episode_Start = False  # 에피소드 시종제어
-        Branch = ''  # 나뭇가지 상태 -> 신경망 입력 형변환
-        Player = ''  # 나무꾼 상태 -> 신경망 입력 형변환
-        Revive_Y = ''  # 이어하기_Y 상태 -> 신경망 입력 형변환
-        Revive_N = ''  # 이어하기_N 상태 -> 신경망 입력 형변환
+        ########################################################################################################
+        # 에피소드 시작
+        # 탐지 버퍼 초기화
+        center_array = []
+        # 행동 선택 및 시행
+        if not Skip:
+            print('State : ', State)
+            Action = Agent.Action(State)
+            print('Action ', Action)
+            keyboard.press_and_release(Action)
+            # 스텝 카운트
+            tmp_count += 1
+            print('tmp_count : ', tmp_count)
+            # 상태인식 지연
+            time.sleep(0.1)
+        ########################################################################################################
+
+
 
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -110,7 +134,6 @@ def detect(save_img=False):
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
-            center_array = [] # center collection
             if webcam:  # batch_size >= 1
                 p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
             else:
@@ -118,7 +141,7 @@ def detect(save_img=False):
 
             p = Path(p)  # to Path
             # [수정 :: 주석 변환]
-            #save_path = str(save_dir / p.name)  # img.jpg
+            # save_path = str(save_dir / p.name)  # img.jpg
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
 
             s += '%gx%g ' % img.shape[2:]  # print string
@@ -145,104 +168,90 @@ def detect(save_img=False):
                         # 좌상 x = xyxy[0], 좌상 y = xyxy[1], 우하 x = xyxy[2], 우하 y = xyxy[3]
                         label = f'{names[int(cls)]} {conf:.2f}'
                         center = plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
-                        #객체 클래스 및 중심점 저장[클래스 이름, [중심좌표 x, 중심좌표 y]]
+                        # 객체 클래스 및 중심점 저장[클래스 이름, [중심좌표 x, 중심좌표 y]]
                         center_array.append([label[:-5], center])
 
-            # [수정 :: 화면 이름 설정, 크기 조정]
+            # 실시간 모니터링 화면 출력
             # Stream results
-            if view_img:
-                name = 'Detector'
-                cv2.namedWindow(name)
-                cv2.moveWindow(name, 1920, -550)
-                cv2.resizeWindow(name, 1080, 720)
-                im0 = cv2.resize(im0, (1080, 720))
-                cv2.imshow(name, im0)
+            # if view_img:
+            #     name = 'Detector'
+            #     cv2.namedWindow(name)
+            #     cv2.moveWindow(name, 1920, -550)
+            #     cv2.resizeWindow(name, 1080, 720)
+            #     im0 = cv2.resize(im0, (1080, 720))
+            #     cv2.imshow(name, im0)
+
+
 
         ########################################################################################################
-        # 탐지(raw status) -> 상태(converted status) 변환
+        # 다음상태 추출(단, 종점이면 다음 상태 = [0, 0, 0, 0])
+        # 탐지(raw status) -> 상태(converted status) = 격자상태 변환
+        Next_state = Environment.Step(center_array)
+        if not Skip:
+            print('Next_state : ', Next_state)
         ########################################################################################################
-        status = Main.ternary(center_array) #격자 상태 변환
-        print('status : ', status)
+
+
 
         ########################################################################################################
-        # 에피소드 종료 또는 객체 탐지 X 상태 추가
-        ########################################################################################################
-        for i in range(len(status)): # 신경망 입력 준비
-            if status[i][0] == 'Branch':
-                Branch += str(status[i][1])+str(status[i][2])
-            elif status[i][0] == 'Player':
-                Player += str(status[i][1])+str(status[i][2])
-            elif status[i][0] == 'Revive_Y':
-                Revive_Y += str(status[i][1])+str(status[i][2])
-            elif status[i][0] == 'Revive_N':
-                Revive_N += str(status[i][1])+str(status[i][2])
-            elif status == 'Episode_Start':
-                Episode_Start = True
-            else:
-                print('상태 스택 쌓기 모듈에 알 수 없는 에러 발생')
-
-        ########################################################################################################
-        # 널 값 점검 조건부 -> 만일의 널 값 대비
-        ########################################################################################################
-        Branch = str(0) if Branch == '' else Branch
-        Player = str(0) if Player == '' else Player
-        Revive_Y = str(0) if Revive_Y == '' else Revive_Y
-        Revive_N = str(0) if Revive_N == '' else Revive_N
-
-        ########################################################################################################
-        # 다음 상태 추출(단, 종점이면 다음 상태 = [0, 0, 0, 0])
-        ########################################################################################################
-        Next_state = torch.tensor([int(Branch), int(Player), int(Revive_Y), int(Revive_N)], device='cuda') \
-            if Episode_Start == False else torch.zeros([1,4])
-        print('Next_state ', Next_state)
-
-        ########################################################################################################
-        # 에피소드 종료
-        ########################################################################################################
-        if(Episode_Start or tmp_count == 10):
-            #마무리 및 저장 시퀀스 정리할 것!
-            Reward = -1
-            break
-        else:
-            tmp_count += 1
-            Reward = 1
+        # 프로세스 종합 분기점(최초 시작, 종료, 진행)
+        # 최초 상태 할당 조건
+        # ★★★★★★★★★ 조건 추가해야함(Player 좌표가 인식된 상태가 첫 상태여야함
+        if Skip \
+                and not torch.equal(State, torch.tensor([0, 0, 0, 0, 1], device='cuda'))\
+                and not torch.equal(State, torch.tensor(5, device='cuda'))\
+                and not torch.equal(Next_state, torch.tensor([0, 0, 0, 0, 1], device='cuda')) \
+                and not torch.equal(Next_state, torch.zeros(5, device='cuda')) \
+                and not torch.equal(State, Next_state):
+            # 이미지 버퍼 비워진 상태일 시,
+            Skip = not Skip
+            print('skip convert')
+            print(State)
+            print(Next_state)
             State = Next_state
-            Action = Agent.Action(State)
-            keyboard.press_and_release(Action)
+
+        # 종료 확인 및 다음 프로세스 진행(보상 수여, 스택쌓기 => 신경망 업데이트) 조건
+        elif not Skip and (Next_state[2] or Next_state[3] or Next_state[4]) or tmp_count == 50:
+            # 마무리 및 저장 시퀀스 정리할 것!
+            # Reward = -1
+            if not Skip:
+                print('cause skip')
+            elif tmp_count == 50:
+                print('max count')
+            else:
+                print('next state incorrect')
+            print('all break')
+            break
+        # 다음상태 이어서 진행 조건
+        else:
+            # Reward =
+            # V_value =
+            # Next_V_value =
             ###############
-            # 신경망 업데이트
+            # 신경망 업데이트(N-step)
+            # if len(Batch_state) < RL.BATCH_SIZE
             ###############
-            time.sleep(0.1)
+            # 상태 전달 및 다음상태 버퍼 비우기
+            State = Next_state
+        ########################################################################################################
 
 
-
-        # Action = Agent.Action(State)
-        # print('Action ', Action)
-        # keyboard.press_and_release(Action)
-
-
-        # Next_state =
-        # Reward
-        # V_value =
-        # Next_V_value =
-
-        #if len(Batch_state) < RL.BATCH_SIZE
 
     ########################################################################################################
     # 학습 종료
-    ########################################################################################################
     print('epi exit')
     exit()
-
-
-
-        ########################################################################################################
-        # 단일 탐지 싸이클 끝선
-        ########################################################################################################
     ########################################################################################################
-    # 탐지 종료 이후
-    ########################################################################################################
+    # 탐지 종료 이후 절차
+    # (모델 저장)
 
+
+
+
+
+
+    ########################################################################################################
+    ########################################################################################################
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

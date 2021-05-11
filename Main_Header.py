@@ -154,8 +154,6 @@ def training():
     '''TRAIN 모듈'''
     detecting_capture()
 
-
-
 # def testing():
 #     '''TEST 모듈'''
 #     detecting_capture()
@@ -167,11 +165,3 @@ def detecting_capture():
     subprocess.run('python detect.py --source '+WEBCAM_PATH+' --weights '+MODEL_PATH+' --device '+DEVICE_PATH, shell=True)
     return
 
-def ternary(center_array):
-    '''탐지화면 삼진화 -> 상태식(Domain) 생성 // x-axis :: 60 ++ 50, y-axis :: 0 ++ 320'''
-    status = []
-    for data in center_array:
-        col_offset = data[1][0]//320+1 # [y] +1 -> 상태 혼동 방지 bias
-        row_offset = (data[1][1] - 60) // 50 + 1 # [x] -60 -> 모니터링 화면과 YOLO모델 픽셀 차이 상쇄 // +1 -> 상태혼동방지
-        status.append([data[0], row_offset, col_offset])
-    return status

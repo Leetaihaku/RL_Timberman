@@ -81,7 +81,7 @@ def detect(save_img=False):
     # 초기 설정(환경, 에이전트, 상태 생성, 에피소드 시종제어)
     Environment = RL.Environment()
     Agent = RL.Agent()
-    State = torch.zeros([1, 5], device='cuda')
+    State = torch.tensor([0, 0, 0, 0, 0], device='cuda')
     # 게임 활성화 클릭 에피소드 시작 준비
     # 활성화
     pyautogui.moveTo(x=960, y=640)
@@ -89,8 +89,10 @@ def detect(save_img=False):
     # 에피소드 시작 준비(완전탐지 딜레이)
     keyboard.press_and_release('s')
 
-    # 최초 1회 Skip 변수 = 최초 상태 인식 위함
+    # Skip 변수 = 최초 상태 인식 위함
+    # Detect 변수 = 유효 이미지 색출 위함
     Skip = True
+    Detect = True
     # 임시 반복 카운터
     tmp_count = 0
     ########################################################################################################
@@ -102,7 +104,8 @@ def detect(save_img=False):
         # 탐지 버퍼 초기화
         center_array = []
         # 행동 선택 및 시행
-        if not Skip:
+        if not Skip and Detect:
+            print('###########################')
             print('State : ', State)
             Action = Agent.Action(State)
             print('Action ', Action)
@@ -110,11 +113,8 @@ def detect(save_img=False):
             # 스텝 카운트
             tmp_count += 1
             print('tmp_count : ', tmp_count)
-            # 상태인식 지연
             time.sleep(0.1)
         ########################################################################################################
-
-
 
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -173,13 +173,13 @@ def detect(save_img=False):
 
             # 실시간 모니터링 화면 출력
             # Stream results
-            # if view_img:
-            #     name = 'Detector'
-            #     cv2.namedWindow(name)
-            #     cv2.moveWindow(name, 1920, -550)
-            #     cv2.resizeWindow(name, 1080, 720)
-            #     im0 = cv2.resize(im0, (1080, 720))
-            #     cv2.imshow(name, im0)
+            if view_img:
+                name = 'Detector'
+                cv2.namedWindow(name)
+                cv2.moveWindow(name, 1920, -550)
+                cv2.resizeWindow(name, 1080, 720)
+                im0 = cv2.resize(im0, (1080, 720))
+                cv2.imshow(name, im0)
 
 
 
@@ -187,8 +187,14 @@ def detect(save_img=False):
         # 다음상태 추출(단, 종점이면 다음 상태 = [0, 0, 0, 0])
         # 탐지(raw status) -> 상태(converted status) = 격자상태 변환
         Next_state = Environment.Step(center_array)
-        if not Skip:
+        if not torch.equal(State, Next_state):
+            Detect = True
             print('Next_state : ', Next_state)
+            print('###########################')
+        else:
+            Detect = False
+            print('')
+            continue
         ########################################################################################################
 
 
@@ -196,22 +202,17 @@ def detect(save_img=False):
         ########################################################################################################
         # 프로세스 종합 분기점(최초 시작, 종료, 진행)
         # 최초 상태 할당 조건
-        # ★★★★★★★★★ 조건 추가해야함(Player 좌표가 인식된 상태가 첫 상태여야함
-        if Skip \
-                and not torch.equal(State, torch.tensor([0, 0, 0, 0, 1], device='cuda'))\
-                and not torch.equal(State, torch.tensor(5, device='cuda'))\
-                and not torch.equal(Next_state, torch.tensor([0, 0, 0, 0, 1], device='cuda')) \
-                and not torch.equal(Next_state, torch.zeros(5, device='cuda')) \
-                and not torch.equal(State, Next_state):
+
+        if Skip\
+                and State.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]]\
+                and Next_state.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]]\
+                and State[1] != 0 and Next_state[1] != 0:
             # 이미지 버퍼 비워진 상태일 시,
             Skip = not Skip
-            print('skip convert')
-            print(State)
-            print(Next_state)
-            State = Next_state
+            print('skip off')
 
         # 종료 확인 및 다음 프로세스 진행(보상 수여, 스택쌓기 => 신경망 업데이트) 조건
-        elif not Skip and (Next_state[2] or Next_state[3] or Next_state[4]) or tmp_count == 50:
+        elif not Skip and tmp_count == 10:
             # 마무리 및 저장 시퀀스 정리할 것!
             # Reward = -1
             if not Skip:
@@ -222,6 +223,7 @@ def detect(save_img=False):
                 print('next state incorrect')
             print('all break')
             break
+
         # 다음상태 이어서 진행 조건
         else:
             # Reward =
@@ -232,7 +234,12 @@ def detect(save_img=False):
             # if len(Batch_state) < RL.BATCH_SIZE
             ###############
             # 상태 전달 및 다음상태 버퍼 비우기
-            State = Next_state
+            print('last of loop')
+        State = Next_state
+
+
+        #다음상태 넘기기
+
         ########################################################################################################
 
 

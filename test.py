@@ -1,17 +1,10 @@
+import torch
+import RL_Header as RL
 
-# 파일 이름 바꾸기 코드
-# import os
-#
-# DIR = 'D:\\RL_Timberman\\labelimg\\add_data\\'
-# file_names = os.listdir(DIR)
-#
-# i=1028
-# for name in file_names:
-#     src = os.path.join(DIR, name)
-#     print(src)
-#     dst = str(i)+'.jpeg'
-#     print(dst)
-#     dst = os.path.join(DIR, dst)
-#     print(dst)
-#     os.rename(src, dst)
-#     i+=1
+Agent = RL.Agent()
+
+arr = [[1., 2., 3., 4., 5.], [6., 7., 8., 9., 10.], [11., 12., 13., 14., 15.], [16., 17., 18., 19., 20.]]
+arr = torch.tensor(arr).reshape([4, 5]).cuda(device='cuda')
+print(arr)
+result = Agent.Critic(arr)
+print(result)

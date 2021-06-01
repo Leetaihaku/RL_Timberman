@@ -10,81 +10,69 @@ from torch import nn
 from torch import optim
 
 # 상태 차원
-STATE_DIM = 4
+STATE_DIM = 5
 # 행동, 행동 차원
 ACTION_OPTION = ['left arrow', 'right arrow']
-ACTION_DIM = 4
+ACTION_DIM = 2
 # 노드 수
 NODES = 12
 # 학습률
 LEARNING_RATE = 0.01
+# 배치사이즈
+BATCH_SIZE = 3
 
 
-class Actor_network:
-    '''액터-신경망'''
+def Actor_network():
+    """액터-신경망"""
 
-    def __init__(self, State_dim, Action_dim):
-        self.State_dim = State_dim
-        self.Action_dim = Action_dim
-        self.Optimizer = optim.Adam
-        self.Net = self.Build_ANet().cuda(device='cuda')
-        ts.summary(self.Net, (1, STATE_DIM), device='cuda')
-
-    def Build_ANet(self):
-        model = nn.Sequential()
-        model.add_module('fc1', nn.Linear(self.State_dim, NODES))
-        model.add_module('relu1', nn.ReLU())
-        model.add_module('fc2', nn.Linear(NODES, NODES))
-        model.add_module('relu2', nn.ReLU())
-        model.add_module('fc2', nn.Linear(NODES, self.Action_dim))
-        return model
+    model = nn.Sequential()
+    model.add_module('fc1', nn.Linear(STATE_DIM, NODES))
+    model.add_module('relu1', nn.ReLU())
+    model.add_module('fc2', nn.Linear(NODES, NODES))
+    model.add_module('relu2', nn.ReLU())
+    model.add_module('fc3', nn.Linear(NODES, ACTION_DIM))
+    return model
 
 
-class Critic_network:
-    '''크리틱-신경망'''
+def Critic_network():
+    """크리틱-신경망"""
 
-    def __init__(self, State_dim):
-        self.State_dim = State_dim
-        self.Optimizer = optim.Adam
-        self.Net = self.Build_CNet().cuda(device='cuda')
-        ts.summary(self.Net, (1, STATE_DIM), device='cuda')
-
-    def Build_CNet(self):
-        model = nn.Sequential()
-        model.add_module('fc1', nn.Linear(self.State_dim, NODES))
-        model.add_module('relu1', nn.ReLU())
-        model.add_module('fc2', nn.Linear(NODES, NODES))
-        model.add_module('relu2', nn.ReLU())
-        model.add_module('fc2', nn.Linear(NODES, 1))
-        return model
+    model = nn.Sequential()
+    model.add_module('fc1', nn.Linear(STATE_DIM, NODES))
+    model.add_module('relu1', nn.ReLU())
+    model.add_module('fc2', nn.Linear(NODES, NODES))
+    model.add_module('relu2', nn.ReLU())
+    model.add_module('fc2', nn.Linear(NODES, 1))
+    return model
 
 
-class Agent():
-    '''강화학습 인공지능'''
+class Agent:
+    """강화학습 인공지능"""
 
     def __init__(self):
-        self.Actor = Actor_network(State_dim=STATE_DIM, Action_dim=ACTION_DIM)
-        self.Critic = Critic_network(State_dim=STATE_DIM)
+        self.Actor = Actor_network().cuda(device='cuda')
+        self.Critic = Critic_network().cuda(device='cuda')
+        self.Optimizer = optim.Adam
         self.Epsilon = 1
+        ts.summary(self.Actor, (1, STATE_DIM), device='cuda')
+        ts.summary(self.Critic, (1, STATE_DIM), device='cuda')
 
     def Action(self, state):
-        '''Agent 행동 추출'''
+        """Agent 행동 추출"""
+
         if self.Epsilon > 0.5:
             return ACTION_OPTION[np.random.randint(2)]
         else:
             return ACTION_OPTION[self.Actor.Net(state)]
 
-    def Value(self, state):
-        '''Agent 가치함수 추출'''
-        return self.Critic.Net(state)
+    def Value(self, Batch):
+        """Agent 가치함수 추출"""
+        return self.Critic(torch.tensor(Batch).reshape([BATCH_SIZE, STATE_DIM]).cuda(device='cuda'))
 
-
-class Environment():
-    def __init__(self):
-        self.Next_state = ''
-
+class Environment:
     def Step(self, extracted_arr):
-        '''탐지화면 삼진화 -> 상태식(Domain) 생성 // x-axis :: 60 ++ 50, y-axis :: 0 ++ 320'''
+        """탐지화면 삼진화 -> 상태식(Domain) 생성 // x-axis :: 60 ++ 50, y-axis :: 0 ++ 320"""
+
         Branch = ''  # 나뭇가지 상태 -> 신경망 입력 형변환
         Player = ''  # 나무꾼 상태 -> 신경망 입력 형변환
         Revive_Y = ''  # 이어하기_Y 상태 -> 신경망 입력 형변환
@@ -121,12 +109,11 @@ class Environment():
 
         # 나뭇가지 데이터 정제(동일상태 상이인식 방지 => 근->원)
         Refined_branch = []
-        for i in range(len(Branch)//2):
-            Refined_branch.append(int(Branch[2*i:2*i+2]))
+        for i in range(len(Branch) // 2):
+            Refined_branch.append(int(Branch[2 * i:2 * i + 2]))
         Refined_branch = sorted(Refined_branch, reverse=True)
         Refined_branch = str(0) if Refined_branch == [] else ''.join(map(str, Refined_branch))
 
         # 다음상태 저장
-        Next_state = torch.tensor([int(Refined_branch), int(Player), int(Revive_Y), int(Revive_N), int(Episode_Start)],
-                                  device='cuda')
+        Next_state = torch.tensor([float(Refined_branch), float(Player), float(Revive_Y), float(Revive_N), float(Episode_Start)], device='cuda')
         return Next_state

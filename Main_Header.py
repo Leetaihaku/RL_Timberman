@@ -14,12 +14,12 @@ from PyQt5.QtCore import QObject, pyqtSlot
 from PyQt5.QtWidgets import QFileDialog, QMainWindow
 
 # DISK 경로
-DISK = "D:"
+DISK = "C:"
 # BlueStack(앱 플레이어) 실행경로
 ADDRESS_BlueStack = "C:\Program Files\BlueStacks\Bluestacks.exe"
 # 이미지, 모델, 디바이스 경로
 WEBCAM_PATH = '0'
-MODEL_PATH = DISK+"\\RL_Timberman\\YOLOv3\\runs\\train\\8696\\weights\\best2.pt"
+MODEL_PATH = DISK+"\\RL_Timberman\\YOLOv3\\runs\\train\\860_final_gpu\\weights\\best.pt"
 # CUDA 경로
 DEVICE_PATH = '0'
 

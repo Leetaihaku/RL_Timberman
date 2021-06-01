@@ -20,17 +20,17 @@ import pyautogui
 import time
 import keyboard
 
-#################################################################################################################
-
-                                        # 탐지 및 탐지상태 변환함수
 
 #################################################################################################################
 
+# 탐지 및 탐지상태 변환함수
+
+#################################################################################################################
 
 
 #################################################################################################################
 
-                                        # 모델파일 조건부 로드
+# 모델파일 조건부 로드
 
 #################################################################################################################
 def detect(save_img=False):
@@ -78,23 +78,25 @@ def detect(save_img=False):
 
     ########################################################################################################
     # 에피소드 초기 설정
-    # 초기 설정(환경, 에이전트, 상태 생성, 에피소드 시종제어)
+    # 초기 설정(환경, 에이전트, 상태 생성, 에피소드 시종제어 등등) 및 변수(Skip 변수 = 최초 상태 인식 위함) 선언
     Environment = RL.Environment()
     Agent = RL.Agent()
-    State = torch.tensor([0, 0, 0, 0, 0], device='cuda')
+    Skip = True
+    State = torch.tensor([0., 0., 0., 0., 0.], device='cuda')
+    Action = None
+    Reward = None
+    Batch_state = []
+    Batch_action = []
+    Batch_reward = []
+    Batch_next_state = []
+
     # 게임 활성화 클릭 에피소드 시작 준비
     # 활성화
     pyautogui.moveTo(x=960, y=640)
     pyautogui.doubleClick()
+
     # 에피소드 시작 준비(완전탐지 딜레이)
     keyboard.press_and_release('s')
-
-    # Skip 변수 = 최초 상태 인식 위함
-    # Detect 변수 = 유효 이미지 색출 위함
-    Skip = True
-    Detect = True
-    # 임시 반복 카운터
-    tmp_count = 0
     ########################################################################################################
 
     # 탐지 모듈(상태 생성기) 루프
@@ -103,17 +105,18 @@ def detect(save_img=False):
         # 에피소드 시작
         # 탐지 버퍼 초기화
         center_array = []
+
         # 행동 선택 및 시행
-        if not Skip and Detect:
+        if not Skip:
             print('###########################')
             print('State : ', State)
             Action = Agent.Action(State)
             print('Action ', Action)
             keyboard.press_and_release(Action)
-            # 스텝 카운트
-            tmp_count += 1
-            print('tmp_count : ', tmp_count)
-            time.sleep(0.1)
+
+            # 현재상태 x 위험행동 => 에피소드 종료
+            if str(State)[8:10] == '61' and Action == 'left arrow' or str(State)[8:10] == '62' and 'right arrow':
+                break
         ########################################################################################################
 
         img = torch.from_numpy(img).to(device)
@@ -181,84 +184,111 @@ def detect(save_img=False):
                 im0 = cv2.resize(im0, (1080, 720))
                 cv2.imshow(name, im0)
 
-
-
         ########################################################################################################
-        # 다음상태 추출(단, 종점이면 다음 상태 = [0, 0, 0, 0])
+        # 다음상태 추출(단, 종점이면 다음 상태 = [0, 0, 0, 0, 0])
         # 탐지(raw status) -> 상태(converted status) = 격자상태 변환
         Next_state = Environment.Step(center_array)
-        if not torch.equal(State, Next_state):
-            Detect = True
-            print('Next_state : ', Next_state)
-            print('###########################')
-        else:
-            Detect = False
-            print('')
+
+        # 추출 다음상태 적합성 판단
+        # 행동 존재 X, 변화 감지 X, 최초상태 할당조건
+        if Action is None and torch.equal(State, Next_state) \
+                and State.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]] \
+                and Next_state.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]] \
+                and State[1] != 0 and Next_state[1] != 0:
+            print('행동 X, 변화 X')
+            Skip = False
+
+        # 행동 존재 O , 변화 감지 O
+        elif Action is not None and not torch.equal(State, Next_state):
+            # 나뭇가지 개수 인식 및 y좌표 검사 구문 및 조건분기문
+            # Branch_num = 나뭇가지 개수, Confirm_flag = 나뭇가지 상태변화 확인플래그
+            Branch_num = 8
+            Confirm_flag = True
+            # 나뭇가지 개수 파악
+            while str(State)[Branch_num] != '.':
+                Branch_num += 1
+            Branch_num = (Branch_num - 8) // 2
+            # 나뭇가지 상태변화 확인
+            for i in range(Branch_num):
+                if str(State)[i*2+8] == str(Next_state)[i*2+8]:
+                    Confirm_flag = False
+            # 상태변화 확인 O,
+            if Confirm_flag:
+                print('행동 O, 변화 O')
+                print('Next_state : ', Next_state)
+                print('###########################')
+                Action = None
+                Skip = False
+            # 상태변화 확인 X,
+            else:
+                Skip = True
+                continue
+
+        # 행동 존재 O, 변화 감지 X
+        elif Action is not None and torch.equal(State, Next_state):
+            print('행동 O, 변화 X')
+            Skip = True
             continue
+
+        # 행동 존재 X, 변화 감지 O
+        else:
+            print('행동 X, 변화 O')
+            Skip = True
         ########################################################################################################
-
-
 
         ########################################################################################################
         # 프로세스 종합 분기점(최초 시작, 종료, 진행)
-        # 최초 상태 할당 조건
 
-        if Skip\
-                and State.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]]\
-                and Next_state.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]]\
-                and State[1] != 0 and Next_state[1] != 0:
-            # 이미지 버퍼 비워진 상태일 시,
-            Skip = not Skip
-            print('skip off')
-
-        # 종료 확인 및 다음 프로세스 진행(보상 수여, 스택쌓기 => 신경망 업데이트) 조건
-        elif not Skip and tmp_count == 10:
-            # 마무리 및 저장 시퀀스 정리할 것!
-            # Reward = -1
-            if not Skip:
-                print('cause skip')
-            elif tmp_count == 50:
-                print('max count')
-            else:
-                print('next state incorrect')
-            print('all break')
+        # 종료 확인
+        if not Skip and torch.equal(Next_state[1], torch.tensor(0).cuda(device='cuda')):
             break
 
-        # 다음상태 이어서 진행 조건
+        # 다음 프로세스 진행(보상 수여, 스택쌓기 => 신경망 업데이트) 조건
+        # 보상 수여
+        Reward = 1
+
+        # 배치 쌓기
+        if len(Batch_state) < RL.BATCH_SIZE:
+            Batch_state.append(State)
+            Batch_action.append(Action)
+            Batch_reward.append(Reward)
+            Batch_next_state.append(Next_state)
+
+        # 배치에 의한 업데이트
         else:
-            # Reward =
-            # V_value =
-            # Next_V_value =
-            ###############
+            print(len(Batch_state))
+            V_value = Agent.Critic(Batch_state)
+            Next_V_value = Agent.Critic(Batch_next_state)
+
             # 신경망 업데이트(N-step)
-            # if len(Batch_state) < RL.BATCH_SIZE
-            ###############
-            # 상태 전달 및 다음상태 버퍼 비우기
-            print('last of loop')
+            print('V_value : ', V_value)
+            print('Next_V_value : ', Next_V_value)
+            # 스택사이클 횟수체크 + 나머지 디버깅
+            exit()
+
+            # 배치 초기화
+            Batch_state = []
+            Batch_action = []
+            Batch_reward = []
+            Batch_next_state = []
+
+        # 상태 전달 및 다음상태 버퍼 비우기
         State = Next_state
-
-
-        #다음상태 넘기기
-
         ########################################################################################################
-
-
 
     ########################################################################################################
     # 학습 종료
+    # 마무리 및 저장 시퀀스 정리할 것!
+    Reward = -1
     print('epi exit')
     exit()
     ########################################################################################################
     # 탐지 종료 이후 절차
     # (모델 저장)
 
-
-
-
-
-
     ########################################################################################################
     ########################################################################################################
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

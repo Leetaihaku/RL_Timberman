@@ -84,11 +84,7 @@ def detect(save_img=False):
     Skip = True
     State = torch.tensor([0., 0., 0., 0., 0.], device='cuda')
     Action = None
-    Reward = None
-    Batch_state = []
-    Batch_action = []
-    Batch_reward = []
-    Batch_next_state = []
+    Done = False
 
     # 게임 활성화 클릭 에피소드 시작 준비
     # 활성화
@@ -96,7 +92,7 @@ def detect(save_img=False):
     pyautogui.doubleClick()
 
     # 에피소드 시작 준비(완전탐지 딜레이)
-    keyboard.press_and_release('s')
+    Agent.Start()
     ########################################################################################################
 
     # 탐지 모듈(상태 생성기) 루프
@@ -111,8 +107,7 @@ def detect(save_img=False):
             print('###########################')
             print('State : ', State)
             Action = Agent.Action(State)
-            print('Action ', Action)
-            keyboard.press_and_release(Action)
+            print('Action ', RL.ACTION_OPTION[Action])
 
             # 현재상태 x 위험행동 => 에피소드 종료
             if str(State)[8:10] == '61' and Action == 'left arrow' or str(State)[8:10] == '62' and 'right arrow':
@@ -191,15 +186,20 @@ def detect(save_img=False):
 
         # 추출 다음상태 적합성 판단
         # 행동 존재 X, 변화 감지 X, 최초상태 할당조건
-        if Action is None and torch.equal(State, Next_state) \
-                and State.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]] \
-                and Next_state.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]] \
-                and State[1] != 0 and Next_state[1] != 0:
-            print('행동 X, 변화 X')
-            Skip = False
+        if Action is None:
+            if torch.equal(State, Next_state) \
+                    and State.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]] \
+                    and Next_state.tolist() not in [[0, 0, 0, 0, 0], [0, 0, 0, 0, 1]] \
+                    and State[1] != 0 and Next_state[1] != 0:
+                print('행동 X, 변화 X')
+                Skip = False
+            # 행동 존재 X, 변화 감지 O
+            else:
+                print('행동 X, 변화 O')
+                Skip = True
 
-        # 행동 존재 O , 변화 감지 O
-        elif Action is not None and not torch.equal(State, Next_state):
+        # 행동 존재 O
+        elif Action is not None:
             # 나뭇가지 개수 인식 및 y좌표 검사 구문 및 조건분기문
             # Branch_num = 나뭇가지 개수, Confirm_flag = 나뭇가지 상태변화 확인플래그
             Branch_num = 8
@@ -210,81 +210,70 @@ def detect(save_img=False):
             Branch_num = (Branch_num - 8) // 2
             # 나뭇가지 상태변화 확인
             for i in range(Branch_num):
-                if str(State)[i*2+8] == str(Next_state)[i*2+8]:
+                if str(State)[i * 2 + 8] == str(Next_state)[i * 2 + 8]:
                     Confirm_flag = False
-            # 상태변화 확인 O,
+            # 변화감지 확인 O,
             if Confirm_flag:
                 print('행동 O, 변화 O')
                 print('Next_state : ', Next_state)
                 print('###########################')
-                Action = None
                 Skip = False
-            # 상태변화 확인 X,
+            # 변화감지 확인 X,
             else:
+                print('행동 O, 변화 X')
                 Skip = True
                 continue
 
-        # 행동 존재 O, 변화 감지 X
-        elif Action is not None and torch.equal(State, Next_state):
-            print('행동 O, 변화 X')
-            Skip = True
-            continue
-
-        # 행동 존재 X, 변화 감지 O
-        else:
-            print('행동 X, 변화 O')
-            Skip = True
-        ########################################################################################################
+        # # 행동 존재 O, 변화 감지 X
+        # elif Action is not None and torch.equal(State, Next_state):
+        #     print('행동 O, 변화 X')
+        #     Skip = True
+        #     continue
 
         ########################################################################################################
-        # 프로세스 종합 분기점(최초 시작, 종료, 진행)
+        # ↑ 코드 정리할 것!(간결화 및 정리)
+        #
+        # 다음 프로세스 진행(보상 수여, 스택쌓기 => 신경망 업데이트) 조건
+        # 배치 제어
+        if not Skip and Action is not None:
+            # 종료 확인
+            Done = True if torch.equal(Next_state[1], torch.tensor(0).cuda(device='cuda')) else False
+            # 보상 수여
+            Reward = torch.tensor(-1.).cuda(device='cuda') if Done else torch.tensor(1.).cuda(device='cuda')
+            # 현재 상태가치 및 다음 상태가치 계산
+            V_value = Agent.Value(State)
+            Next_V_value = Agent.Value(Next_state)
+            # 어드밴티지 및 갱신 현재 상태가지 계산
+            Advantage, Q_value = Agent.Advantage_and_Q_value(V_value, Reward, Next_V_value, Done)
+            # 배치 쌓기
+            Agent.Save_batch(State, Action, Q_value, Advantage)
+            print('Batch_len : ', len(Agent.Batch))
+            print('AGB : ', Agent.Batch)
 
-        # 종료 확인
-        if not Skip and torch.equal(Next_state[1], torch.tensor(0).cuda(device='cuda')):
+            # 배치에 의한 업데이트
+            if len(Agent.Batch) == RL.BATCH_SIZE:
+                print('update')
+                exit()
+                Agent.Update_all_network()
+
+        # 에피소드 종료 및 마지막 배치 업데이트
+        if Done:
+            RL.BATCH_SIZE = len(Agent.Batch)
+            # 마지막 업데이트 및 프로세스 탈출
             break
 
-        # 다음 프로세스 진행(보상 수여, 스택쌓기 => 신경망 업데이트) 조건
-        # 보상 수여
-        Reward = 1
-
-        # 배치 쌓기
-        if len(Batch_state) < RL.BATCH_SIZE:
-            Batch_state.append(State)
-            Batch_action.append(Action)
-            Batch_reward.append(Reward)
-            Batch_next_state.append(Next_state)
-
-        # 배치에 의한 업데이트
+        # 상태 전달 및 버퍼 비우기
         else:
-            print(len(Batch_state))
-            V_value = Agent.Critic(Batch_state)
-            Next_V_value = Agent.Critic(Batch_next_state)
-
-            # 신경망 업데이트(N-step)
-            print('V_value : ', V_value)
-            print('Next_V_value : ', Next_V_value)
-            # 스택사이클 횟수체크 + 나머지 디버깅
-            exit()
-
-            # 배치 초기화
-            Batch_state = []
-            Batch_action = []
-            Batch_reward = []
-            Batch_next_state = []
-
-        # 상태 전달 및 다음상태 버퍼 비우기
-        State = Next_state
+            State = Next_state
+            Action = None
         ########################################################################################################
 
     ########################################################################################################
     # 학습 종료
     # 마무리 및 저장 시퀀스 정리할 것!
-    Reward = -1
+
     print('epi exit')
     exit()
-    ########################################################################################################
-    # 탐지 종료 이후 절차
-    # (모델 저장)
 
     ########################################################################################################
     ########################################################################################################

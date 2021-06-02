@@ -3,8 +3,5 @@ import RL_Header as RL
 
 Agent = RL.Agent()
 
-arr = [[1., 2., 3., 4., 5.], [6., 7., 8., 9., 10.], [11., 12., 13., 14., 15.], [16., 17., 18., 19., 20.]]
-arr = torch.tensor(arr).reshape([4, 5]).cuda(device='cuda')
-print(arr)
-result = Agent.Critic(arr)
-print(result)
+arr = torch.tensor([[3212.,   61.,    0.,    0.,    0.],[4222.,   62.,    0.,    0.,    0.]], device='cuda:0')
+print(arr[0][1])

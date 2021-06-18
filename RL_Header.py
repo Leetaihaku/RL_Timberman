@@ -25,7 +25,7 @@ GAMMA = 0.9
 # 배치형식
 BATCH = namedtuple('BATCH', ('state', 'action', 'q_value', 'advantage'))
 # 배치사이즈
-BATCH_SIZE = 2
+BATCH_SIZE = 10
 
 
 def Actor_network():
@@ -69,7 +69,8 @@ class Agent:
     def Action(self, state):
         """Agent 행동 추출"""
         action = torch.rand(2).cuda(device='cuda') if self.Epsilon > 0.5 else self.Actor.Net(state)
-        keyboard.press_and_release(ACTION_OPTION[1 if action > 0.5 else 0])
+        action = action.argmax()
+        keyboard.press_and_release(ACTION_OPTION[action.item()])
         return torch.tensor([1 if action > 0.5 else 0]).cuda(device='cuda')
 
     def Value(self, Batch):

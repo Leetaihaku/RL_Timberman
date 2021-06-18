@@ -110,8 +110,8 @@ def detect(save_img=False):
             print('Action ', RL.ACTION_OPTION[Action])
 
             # 현재상태 x 위험행동 => 에피소드 종료
-            if str(State)[8:10] == '61' and Action == 'left arrow' or str(State)[8:10] == '62' and 'right arrow':
-                break
+            #if str(State)[8:10] == '61' and Action == 'left arrow' or str(State)[8:10] == '62' and 'right arrow':
+            #    break
         ########################################################################################################
 
         img = torch.from_numpy(img).to(device)
@@ -223,12 +223,6 @@ def detect(save_img=False):
                 print('행동 O, 변화 X')
                 Skip = True
                 continue
-
-        # # 행동 존재 O, 변화 감지 X
-        # elif Action is not None and torch.equal(State, Next_state):
-        #     print('행동 O, 변화 X')
-        #     Skip = True
-        #     continue
 
         ########################################################################################################
         # ↑ 코드 정리할 것!(간결화 및 정리)
